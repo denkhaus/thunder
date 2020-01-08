@@ -1,0 +1,178 @@
+[
+  {
+    "Name": "resulting schema",
+    "Values": [
+      {
+        "__schema": {
+          "types": [
+            {
+              "enumValues": [],
+              "fields": [
+                {
+                  "args": [
+                    {
+                      "name": "id",
+                      "type": {
+                        "kind": "NON_NULL",
+                        "name": "",
+                        "ofType": {
+                          "kind": "SCALAR",
+                          "name": "int64",
+                          "ofType": null
+                        }
+                      }
+                    }
+                  ],
+                  "name": "addId",
+                  "type": {
+                    "kind": "OBJECT",
+                    "name": "bar",
+                    "ofType": null
+                  }
+                },
+                {
+                  "args": [
+                    {
+                      "name": "name",
+                      "type": {
+                        "kind": "NON_NULL",
+                        "name": "",
+                        "ofType": {
+                          "kind": "SCALAR",
+                          "name": "string",
+                          "ofType": null
+                        }
+                      }
+                    }
+                  ],
+                  "name": "addName",
+                  "type": {
+                    "kind": "OBJECT",
+                    "name": "foo",
+                    "ofType": null
+                  }
+                }
+              ],
+              "inputFields": [],
+              "kind": "OBJECT",
+              "name": "Mutation",
+              "possibleTypes": []
+            },
+            {
+              "enumValues": [],
+              "fields": [
+                {
+                  "args": [],
+                  "name": "bar",
+                  "type": {
+                    "kind": "OBJECT",
+                    "name": "bar",
+                    "ofType": null
+                  }
+                },
+                {
+                  "args": [],
+                  "name": "foo",
+                  "type": {
+                    "kind": "OBJECT",
+                    "name": "foo",
+                    "ofType": null
+                  }
+                }
+              ],
+              "inputFields": [],
+              "kind": "OBJECT",
+              "name": "Query",
+              "possibleTypes": []
+            },
+            {
+              "enumValues": [],
+              "fields": [
+                {
+                  "args": [],
+                  "name": "id",
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": "",
+                    "ofType": {
+                      "kind": "SCALAR",
+                      "name": "int64",
+                      "ofType": null
+                    }
+                  }
+                }
+              ],
+              "inputFields": [],
+              "kind": "OBJECT",
+              "name": "bar",
+              "possibleTypes": []
+            },
+            {
+              "enumValues": [],
+              "fields": [
+                {
+                  "args": [],
+                  "name": "name",
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": "",
+                    "ofType": {
+                      "kind": "SCALAR",
+                      "name": "string",
+                      "ofType": null
+                    }
+                  }
+                }
+              ],
+              "inputFields": [],
+              "kind": "OBJECT",
+              "name": "foo",
+              "possibleTypes": []
+            },
+            {
+              "enumValues": [],
+              "fields": [],
+              "inputFields": [],
+              "kind": "SCALAR",
+              "name": "int64",
+              "possibleTypes": []
+            },
+            {
+              "enumValues": [],
+              "fields": [],
+              "inputFields": [],
+              "kind": "SCALAR",
+              "name": "string",
+              "possibleTypes": []
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Name": "field services",
+    "Values": [
+      {
+        "Mutation.addId": [
+          "s2"
+        ],
+        "Mutation.addName": [
+          "s1"
+        ],
+        "Query.bar": [
+          "s2"
+        ],
+        "Query.foo": [
+          "s1"
+        ],
+        "bar.id": [
+          "s2"
+        ],
+        "foo.name": [
+          "s1"
+        ]
+      }
+    ]
+  }
+]

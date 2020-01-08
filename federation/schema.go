@@ -44,6 +44,8 @@ const (
 	Intersection MergeMode = "intersection"
 )
 
+// introspectionTypeRef is a type reference from the GraphQL introspection
+// query.
 type introspectionTypeRef struct {
 	Kind   string                `json:"kind"`
 	Name   string                `json:"name"`
@@ -98,6 +100,14 @@ type introspectionQueryResult struct {
 	Schema introspectionSchema `json:"__schema"`
 }
 
+// mergeTypeRefs takes two types from two different services,
+// makes sure they are compatible, and computes a merged type.
+//
+// Two types are compatible if they are the same besides non-nullable modifiers.
+//
+// The merged type gets non-nullable modifiers depending on how the type is used.
+// For input types, the merged type should be accepted by both services, so it's nullable only if both services accept a nullable type.
+// For output types, the merged type should work for either service, so it's nullable if either service might return null.
 func mergeTypeRefs(a, b *introspectionTypeRef, isInput bool) (*introspectionTypeRef, error) {
 	// If either a or b is non-nil, unwrap it, recurse, and maybe mark the
 	// resulting type as non-nil.
@@ -156,9 +166,9 @@ func mergeTypeRefs(a, b *introspectionTypeRef, isInput bool) (*introspectionType
 		return nil, errors.New("unknown type kind")
 	}
 }
-
-// XXX: for types missing __federation, take intersection?
-
+// mergeInputFields combines two sets of input fields from two schemas.
+//
+// It checks the types are compabible and takes the union or intersection of the fields depending on the Mergemode
 func mergeInputFields(a, b []introspectionInputField, mode MergeMode) ([]introspectionInputField, error) {
 	types := make(map[string][]introspectionInputField)
 	for _, a := range a {
@@ -354,7 +364,6 @@ func mergeTypes(a, b introspectionType, mode MergeMode) (*introspectionType, err
 }
 
 func mergeSchemas(a, b *introspectionQueryResult, mode MergeMode) (*introspectionQueryResult, error) {
-	// XXX: should we surface orphaned types? complain about them?
 	types := make(map[string][]introspectionType)
 	for _, a := range a.Schema.Types {
 		types[a.Name] = append(types[a.Name], a)
@@ -372,8 +381,7 @@ func mergeSchemas(a, b *introspectionQueryResult, mode MergeMode) (*introspectio
 	for _, name := range names {
 		p := types[name]
 		if len(p) == 1 {
-			// For new objects, hide all fields. Otherwise we might end up
-			// sending awkward queries to a service.
+			// When interesction only include types that appear in both schemas
 			if mode == Union {
 				merged = append(merged, p[0])
 			}
@@ -408,6 +416,9 @@ func mergeSchemaSlice(schemas []*introspectionQueryResult, mode MergeMode) (*int
 	return merged, nil
 }
 
+// The code below converts the result of an introspection query in a graphql.Schema
+// that is used for type-checking and computing an execution plan for a federated query.
+
 func lookupTypeRef(t *introspectionTypeRef, all map[string]graphql.Type) (graphql.Type, error) {
 	if t == nil {
 		return nil, errors.New("malformed typeref")
@@ -415,7 +426,7 @@ func lookupTypeRef(t *introspectionTypeRef, all map[string]graphql.Type) (graphq
 
 	switch t.Kind {
 	case "SCALAR", "OBJECT", "UNION", "INPUT_OBJECT", "ENUM":
-		// XXX: enforce type?
+		// TODO: enforce type?
 		typ, ok := all[t.Name]
 		if !ok {
 			return nil, fmt.Errorf("type %s not found among top-level types", t.Name)
@@ -454,7 +465,7 @@ func parseInputFields(source []introspectionInputField, all map[string]graphql.T
 			return nil, fmt.Errorf("field %s has bad typ: %v",
 				field.Name, err)
 		}
-		// XXX check this is an input type
+		// TODO: check this is an input type object isnt an input type
 		fields[field.Name] = here
 	}
 
@@ -500,8 +511,6 @@ func parseSchema(schema *introspectionQueryResult) (map[string]graphql.Type, err
 		}
 	}
 
-	// XXX: should we surface orphaned types? complain about them?
-
 	// Initialize barebone types
 	for _, typ := range schema.Schema.Types {
 		switch typ.Kind {
@@ -520,8 +529,8 @@ func parseSchema(schema *introspectionQueryResult) (map[string]graphql.Type, err
 				}
 
 				fields[field.Name] = &graphql.Field{
-					Args: parsed,   // xxx
-					Type: fieldTyp, // XXX
+					Args: parsed,
+					Type: fieldTyp,
 				}
 			}
 
@@ -550,8 +559,7 @@ func parseSchema(schema *introspectionQueryResult) (map[string]graphql.Type, err
 
 			all[typ.Name].(*graphql.Union).Types = types
 
-			// XXX: for (merged) unions, make sure we only send possible types
-			// to each service
+
 
 		case "ENUM":
 			// XXX: introspection relies on the EnumValues map.
@@ -577,14 +585,19 @@ func parseSchema(schema *introspectionQueryResult) (map[string]graphql.Type, err
 	return all, nil
 }
 
-// serviceSchemas is a map from service name and version to query.
+// serviceSchemas holds all schemas for all of versions of all executors services. It is a map from service name and version to schema.
 type serviceSchemas map[string]map[string]*introspectionQueryResult
 
+// FieldInfo holds federation-specific information for graphql.Fields used to plan and execute queries.
 type FieldInfo struct {
+	// Service is an arbitrary service that can resolve this field. TODO: Delete in favor of services?
 	Service  string
+	// Services is the set of all services that can resolve this field. If a service has multiple versions, all versions must
+	// be able to resolve the field.
 	Services map[string]bool
 }
 
+// SchemaWithFederationInfo holds a graphql.Schema along with federtion-specific annotations per field.
 type SchemaWithFederationInfo struct {
 	Schema *graphql.Schema
 	Fields map[*graphql.Field]*FieldInfo
@@ -634,12 +647,7 @@ func convertVersionedSchemas(schemas serviceSchemas) (*SchemaWithFederationInfo,
 		return nil, err
 	}
 
-	// XXX: the way we compute fieldInfos here is a bit of a lie.
-	// we might include a field that a merge step has removed.
-	// it might be better to track when merging what service(s)
-	// a field is available on.
 	fieldInfos := make(map[*graphql.Field]*FieldInfo)
-
 	for _, service := range serviceNames {
 		for _, typ := range serviceSchemasByName[service].Schema.Types {
 			if typ.Kind == "OBJECT" {
@@ -664,8 +672,8 @@ func convertVersionedSchemas(schemas serviceSchemas) (*SchemaWithFederationInfo,
 
 	return &SchemaWithFederationInfo{
 		Schema: &graphql.Schema{
-			Query:    types["Query"],    // XXX
-			Mutation: types["Mutation"], // XXX
+			Query:    types["Query"],
+			Mutation: types["Mutation"],
 		},
 		Fields: fieldInfos,
 	}, nil
@@ -680,3 +688,13 @@ func convertSchema(schemas map[string]*introspectionQueryResult) (*SchemaWithFed
 	}
 	return convertVersionedSchemas(versionedSchemas)
 }
+
+
+
+
+// XXX: for types missing __federation, take intersection?
+
+// XXX: for (merged) unions, make sure we only send possible types
+// to each service
+
+// TODO: support descriptions in merging
