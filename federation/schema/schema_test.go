@@ -1,14 +1,11 @@
 package federation
 
 import (
-	// "context"
 	"encoding/json"
 	"fmt"
 	"sort"
 	"testing"
 
-	// "github.com/samsarahq/go/snapshotter"
-	// "github.com/samsarahq/thunder/batch"
 	"github.com/samsarahq/thunder/graphql"
 	"github.com/samsarahq/thunder/graphql/introspection"
 	"github.com/samsarahq/thunder/graphql/schemabuilder"
@@ -153,6 +150,7 @@ func extractConvertedVersionedSchemas(t *testing.T, schemas map[string]map[strin
 	return extractSchema(t, merged.Schema), getFieldServiceMaps(t, merged)
 }
 
+// XXX: stick kitchen sink in kitchen_sink_test.go
 type Foo struct {
 	Name string
 }
