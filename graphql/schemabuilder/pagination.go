@@ -991,7 +991,7 @@ func (sb *schemaBuilder) getKeyFieldOnStruct(nodeType reflect.Type) (string, err
 		nodeType = nodeType.Elem()
 	}
 	if _, ok := nodeType.FieldByName(nodeKey); !ok {
-		return nodeKey, fmt.Errorf("field doesn't exist on struct")
+		return nodeKey, fmt.Errorf("key field doesn't exist on struct")
 	}
 
 	return nodeKey, nil
