@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/samsarahq/thunder/graphql"
+	"github.com/denkhaus/thunder/graphql"
 )
 
 // Schema is a struct that can be used to build out a GraphQL schema.  Functions

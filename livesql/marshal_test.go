@@ -3,8 +3,8 @@ package livesql
 import (
 	"testing"
 
-	"github.com/samsarahq/thunder/internal/testfixtures"
-	"github.com/samsarahq/thunder/sqlgen"
+	"github.com/denkhaus/thunder/internal/testfixtures"
+	"github.com/denkhaus/thunder/sqlgen"
 	"github.com/stretchr/testify/assert"
 )
 

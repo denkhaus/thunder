@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/samsarahq/thunder/graphql"
-	"github.com/samsarahq/thunder/internal"
+	"github.com/denkhaus/thunder/graphql"
+	"github.com/denkhaus/thunder/internal"
 	"github.com/stretchr/testify/require"
 )
 

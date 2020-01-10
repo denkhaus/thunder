@@ -7,9 +7,9 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/samsarahq/thunder/batch"
-	"github.com/samsarahq/thunder/internal/proto"
-	"github.com/samsarahq/thunder/internal/testfixtures"
+	"github.com/denkhaus/thunder/batch"
+	"github.com/denkhaus/thunder/internal/proto"
+	"github.com/denkhaus/thunder/internal/testfixtures"
 	"github.com/stretchr/testify/assert"
 )
 

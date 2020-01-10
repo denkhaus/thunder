@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/samsarahq/thunder/graphql"
-	"github.com/samsarahq/thunder/internal"
+	"github.com/denkhaus/thunder/graphql"
+	"github.com/denkhaus/thunder/internal"
 )
 
 // schemaBuilder is a struct for holding all the graph information for types as

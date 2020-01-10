@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/samsarahq/thunder/graphql"
+	"github.com/denkhaus/thunder/graphql"
 )
 
 // buildFunction takes the reflect type of an object and a method attached to

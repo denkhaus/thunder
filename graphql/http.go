@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/samsarahq/thunder/batch"
-	"github.com/samsarahq/thunder/reactive"
+	"github.com/denkhaus/thunder/batch"
+	"github.com/denkhaus/thunder/reactive"
 )
 
 func HTTPHandler(schema *Schema, middlewares ...MiddlewareFunc) http.Handler {

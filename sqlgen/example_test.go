@@ -6,8 +6,8 @@ import (
 	"net"
 	"reflect"
 
-	"github.com/samsarahq/thunder/internal/testfixtures"
-	"github.com/samsarahq/thunder/sqlgen"
+	"github.com/denkhaus/thunder/internal/testfixtures"
+	"github.com/denkhaus/thunder/sqlgen"
 	uuid "github.com/satori/go.uuid"
 )
 

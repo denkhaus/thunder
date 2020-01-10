@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/samsarahq/thunder/graphql"
-	"github.com/samsarahq/thunder/graphql/schemabuilder"
-	"github.com/samsarahq/thunder/reactive"
+	"github.com/denkhaus/thunder/graphql"
+	"github.com/denkhaus/thunder/graphql/schemabuilder"
+	"github.com/denkhaus/thunder/reactive"
 	"github.com/stretchr/testify/require"
 )
 

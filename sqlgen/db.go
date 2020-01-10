@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/samsarahq/thunder/batch"
+	"github.com/denkhaus/thunder/batch"
 )
 
 // DB uses a *sql.DB connection that is established by its owner. DB assumes the
