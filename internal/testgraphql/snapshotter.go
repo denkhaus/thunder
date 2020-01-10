@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/denkhaus/go/snapshotter"
+	"github.com/samsarahq/go/snapshotter"
 	"github.com/denkhaus/thunder/graphql"
 	"github.com/denkhaus/thunder/internal"
 	"github.com/stretchr/testify/require"

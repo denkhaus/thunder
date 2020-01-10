@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/denkhaus/go/oops"
+	"github.com/samsarahq/go/oops"
 	"github.com/denkhaus/thunder/batch"
 	"github.com/denkhaus/thunder/diff"
 	"github.com/denkhaus/thunder/reactive"
