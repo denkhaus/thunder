@@ -39,6 +39,18 @@ func panicFunction() int64 {
 	panic("oh no!")
 }
 
+type InnerArg1 struct {
+	Lala *string
+}
+
+type InnerArg2 struct {
+	Lulu *int32
+}
+type outerArg struct {
+	InnerArg1
+	InnerArg2
+}
+
 func TestExecuteGood(t *testing.T) {
 	schema := NewSchema()
 	type enumType int32
@@ -55,6 +67,21 @@ func TestExecuteGood(t *testing.T) {
 			{Name: "Bob", Age: 20},
 		}
 	})
+
+	query.FieldFunc("nestedArgs1", func(args outerArg) int32 {
+		if args.Lulu != nil {
+			return *args.Lulu
+		}
+		return -1
+	})
+
+	query.FieldFunc("nestedArgs2", func(args outerArg) string {
+		if args.Lala != nil {
+			return *args.Lala
+		}
+		return ""
+	})
+
 	query.FieldFunc("optional", func(args struct{ X *int64 }) int64 {
 		if args.X != nil {
 			return *args.X
@@ -162,6 +189,8 @@ func TestExecuteGood(t *testing.T) {
 			plain { name age byRef byVal }
 			root { nested { time bar: yyy bytes alias } }
 			weirdKey { key }
+			nestedArgs1(lulu:32)
+			nestedArgs2(lala:foo)
 		}
 	`, map[string]interface{}{"var": float64(3)})
 
@@ -193,7 +222,9 @@ func TestExecuteGood(t *testing.T) {
 		"ptr": {"name": "Charlie", "age": 5, "byRef": "byRef", "byVal": "byVal", "__key": "Charlie"},
 		"plain": {"name": "Jane", "age": 5, "byRef": "byRef", "byVal": "byVal", "__key": "Jane"},
 		"root": {"nested": {"time": "2016-03-23T18:31:51Z", "bytes": "YmFy", "bar": 1234, "alias": 999}},
-		"weirdKey": {"key": -1, "__key": -1}
+		"weirdKey": {"key": -1, "__key": -1},
+		"nestedArgs1": 32,
+		"nestedArgs2": "foo"
 		}`)) {
 		t.Error("bad value")
 	}
@@ -652,9 +683,9 @@ func TestArgParser(t *testing.T) {
 		t.Error("expected duplicate fields to fail")
 	}
 
-	if _, _, err := sb.makeArgParser(reflect.TypeOf(&anonymous{})); err == nil {
-		t.Error("expected anonymous fields to fail")
-	}
+	// if _, _, err := sb.makeArgParser(reflect.TypeOf(&anonymous{})); err == nil {
+	// 	t.Error("expected anonymous fields to fail")
+	// }
 
 	if _, _, err := sb.makeArgParser(reflect.TypeOf(&unsupported{})); err == nil {
 		t.Error("expected unsupported fields to fail")

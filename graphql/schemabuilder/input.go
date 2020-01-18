@@ -93,7 +93,7 @@ func (sb *schemaBuilder) makeStructParser(typ reflect.Type) (*argParser, graphql
 
 			for name, field := range fields {
 				value := asMap[name]
-				fieldDest := dest.FieldByIndex(field.field.Index)
+				fieldDest := dest.FieldByName(field.field.Name)
 				if err := field.parser.FromJSON(value, fieldDest); err != nil {
 					return fmt.Errorf("%s: %s", name, err)
 				}
@@ -144,6 +144,10 @@ func (sb *schemaBuilder) getStructObjectFields(typ reflect.Type) (*graphql.Input
 
 //collectFields collects the struct fields from typ with support for anonymous fields
 func (sb *schemaBuilder) collectFields(typ reflect.Type, fields map[string]argField, argType *graphql.InputObject) error {
+	if typ.Kind() != reflect.Struct {
+		return fmt.Errorf("bad arg type %s: struct required", typ)
+	}
+
 	for i := 0; i < typ.NumField(); i++ {
 		field := typ.Field(i)
 		if field.Anonymous {
