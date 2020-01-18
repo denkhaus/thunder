@@ -147,7 +147,9 @@ func (sb *schemaBuilder) collectFields(typ reflect.Type, fields map[string]argFi
 	for i := 0; i < typ.NumField(); i++ {
 		field := typ.Field(i)
 		if field.Anonymous {
-			return sb.collectFields(field.Type, fields, argType)
+			if err := sb.collectFields(field.Type, fields, argType); err != nil {
+				return err
+			}
 		}
 
 		fieldInfo, err := parseGraphQLFieldInfo(field)
