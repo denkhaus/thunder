@@ -135,26 +135,35 @@ func (sb *schemaBuilder) getStructObjectFields(typ reflect.Type) (*graphql.Input
 	// Cache type information ahead of time to catch self-reference
 	sb.typeCache[typ] = cachedType{argType, fields}
 
+	if err := sb.collectFields(typ, fields, argType); err != nil {
+		return nil, nil, err
+	}
+
+	return argType, fields, nil
+}
+
+//collectFields collects the struct fields from typ with support for anonymous fields
+func (sb *schemaBuilder) collectFields(typ reflect.Type, fields map[string]argField, argType *graphql.InputObject) error {
 	for i := 0; i < typ.NumField(); i++ {
 		field := typ.Field(i)
 		if field.Anonymous {
-			return nil, nil, fmt.Errorf("bad arg type %s: anonymous fields not supported", typ)
+			return sb.collectFields(field.Type, fields, argType)
 		}
 
 		fieldInfo, err := parseGraphQLFieldInfo(field)
 		if err != nil {
-			return nil, nil, fmt.Errorf("bad type %s: %s", typ, err.Error())
+			return fmt.Errorf("bad type %s: %s", typ, err.Error())
 		}
 		if fieldInfo.Skipped {
 			continue
 		}
 
 		if _, ok := fields[fieldInfo.Name]; ok {
-			return nil, nil, fmt.Errorf("bad arg type %s: duplicate field %s", typ, fieldInfo.Name)
+			return fmt.Errorf("bad arg type %s: duplicate field %s", typ, fieldInfo.Name)
 		}
 		parser, fieldArgTyp, err := sb.makeArgParser(field.Type)
 		if err != nil {
-			return nil, nil, err
+			return err
 		}
 		if fieldInfo.OptionalInputField {
 			parser, fieldArgTyp = wrapWithZeroValue(parser, fieldArgTyp)
@@ -167,7 +176,7 @@ func (sb *schemaBuilder) getStructObjectFields(typ reflect.Type) (*graphql.Input
 		argType.InputFields[fieldInfo.Name] = fieldArgTyp
 	}
 
-	return argType, fields, nil
+	return nil
 }
 
 // makeArgParser reads the information on a passed in variable type and returns
