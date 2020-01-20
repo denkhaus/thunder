@@ -112,20 +112,20 @@ func (s *introspection) registerType(schema *schemabuilder.Schema) {
 		}
 	})
 
-	object.FieldFunc("name", func(t Type) string {
+	object.FieldFunc("name", func(t Type) *string {
 		switch t := t.Inner.(type) {
 		case *graphql.Object:
-			return t.Name
+			return &t.Name
 		case *graphql.Union:
-			return t.Name
+			return &t.Name
 		case *graphql.Scalar:
-			return t.Type
+			return &t.Type
 		case *graphql.Enum:
-			return t.Type
+			return &t.Type
 		case *graphql.InputObject:
-			return t.Name
+			return &t.Name
 		default:
-			return ""
+			return nil
 		}
 	})
 
@@ -344,7 +344,7 @@ func (s *introspection) schema() *graphql.Schema {
 	return schema.MustBuild()
 }
 
-func AddIntrospectionToSchema(schema *graphql.Schema) {
+func BareIntrospectionSchema(schema *graphql.Schema) *graphql.Schema {
 	types := make(map[string]graphql.Type)
 	collectTypes(schema.Query, types)
 	collectTypes(schema.Mutation, types)
@@ -353,8 +353,11 @@ func AddIntrospectionToSchema(schema *graphql.Schema) {
 		query:    schema.Query,
 		mutation: schema.Mutation,
 	}
-	isSchema := is.schema()
+	return is.schema()
+}
 
+func AddIntrospectionToSchema(schema *graphql.Schema) {
+	isSchema := BareIntrospectionSchema(schema)
 	query := schema.Query.(*graphql.Object)
 
 	isQuery := isSchema.Query.(*graphql.Object)
@@ -370,7 +373,12 @@ func AddIntrospectionToSchema(schema *graphql.Schema) {
 func ComputeSchemaJSON(schemaBuilderSchema schemabuilder.Schema) ([]byte, error) {
 	schema := schemaBuilderSchema.MustBuild()
 	AddIntrospectionToSchema(schema)
+	return RunIntrospectionQuery(schema)
+}
 
+// RunIntrospectionQuery returns the result of executing a GraphQL introspection
+// query.
+func RunIntrospectionQuery(schema *graphql.Schema) ([]byte, error) {
 	query, err := graphql.Parse(introspectionQuery, map[string]interface{}{})
 	if err != nil {
 		return nil, err
