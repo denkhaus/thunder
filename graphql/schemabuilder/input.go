@@ -150,18 +150,19 @@ func (sb *schemaBuilder) collectFields(typ reflect.Type, fields map[string]argFi
 
 	for i := 0; i < typ.NumField(); i++ {
 		field := typ.Field(i)
-		if field.Anonymous {
-			if err := sb.collectFields(field.Type, fields, argType); err != nil {
-				return err
-			}
-			continue
-		}
 
 		fieldInfo, err := parseGraphQLFieldInfo(field)
 		if err != nil {
 			return fmt.Errorf("bad type %s: %s", typ, err.Error())
 		}
 		if fieldInfo.Skipped {
+			continue
+		}
+
+		if field.Anonymous {
+			if err := sb.collectFields(field.Type, fields, argType); err != nil {
+				return err
+			}
 			continue
 		}
 
