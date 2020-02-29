@@ -3,7 +3,6 @@ package federation
 import (
 	"context"
 	"fmt"
-
 	"github.com/samsarahq/thunder/batch"
 	"github.com/samsarahq/thunder/graphql/schemabuilder"
 )
@@ -69,6 +68,9 @@ func buildTestSchema1() *schemabuilder.Schema {
 	})
 
 	foo := schema.Object("Foo", Foo{})
+	foo.Federation(func(f *Foo) string {
+		return f.Name
+	})
 	foo.BatchFieldFunc("s1hmm", func(ctx context.Context, in map[batch.Index]*Foo) (map[batch.Index]string, error) {
 		out := make(map[batch.Index]string)
 		for i, foo := range in {
@@ -81,6 +83,14 @@ func buildTestSchema1() *schemabuilder.Schema {
 	})
 	foo.FieldFunc("s1enum", func(f *Foo) Enum {
 		return Enum(1)
+	})
+
+	schema.Federation().FieldFunc("Bar", func(args struct{ Keys []int64 }) []*Bar {
+		bars := make([]*Bar, 0, len(args.Keys))
+		for _, key := range args.Keys {
+			bars = append(bars, &Bar{Id: key})
+		}
+		return bars
 	})
 
 	bar := schema.Object("Bar", Bar{})
@@ -109,6 +119,14 @@ func buildTestSchema1() *schemabuilder.Schema {
 func buildTestSchema2() *schemabuilder.Schema {
 	schema := schemabuilder.NewSchema()
 
+	schema.Federation().FieldFunc("Foo", func(args struct{ Keys []string }) []*Foo {
+		foos := make([]*Foo, 0, len(args.Keys))
+		for _, key := range args.Keys {
+			foos = append(foos, &Foo{Name: key})
+		}
+		return foos
+	})
+
 	schema.Query().FieldFunc("s2root", func() string {
 		return "hello"
 	})
@@ -116,6 +134,10 @@ func buildTestSchema2() *schemabuilder.Schema {
 	foo := schema.Object("Foo", Foo{})
 
 	foo.FieldFunc("s2ok", func(ctx context.Context, in *Foo) (int, error) {
+		return len(in.Name), nil
+	})
+
+	foo.FieldFunc("s2ok2", func(in *Foo) (int, error) {
 		return len(in.Name), nil
 	})
 
@@ -127,6 +149,11 @@ func buildTestSchema2() *schemabuilder.Schema {
 
 	foo.FieldFunc("s2nest", func(f *Foo) *Foo {
 		return f
+	})
+
+	bar := schema.Object("Bar", Bar{})
+	bar.Federation(func(b *Bar) int64 {
+		return b.Id
 	})
 
 	return schema
