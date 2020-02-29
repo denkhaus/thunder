@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/samsarahq/thunder/graphql"
+	"github.com/denkhaus/thunder/graphql"
 )
 
 const queryString string = "query"

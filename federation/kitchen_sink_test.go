@@ -3,8 +3,8 @@ package federation
 import (
 	"context"
 	"fmt"
-	"github.com/samsarahq/thunder/batch"
-	"github.com/samsarahq/thunder/graphql/schemabuilder"
+	"github.com/denkhaus/thunder/batch"
+	"github.com/denkhaus/thunder/graphql/schemabuilder"
 )
 
 type Enum int
