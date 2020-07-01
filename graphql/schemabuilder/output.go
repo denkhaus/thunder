@@ -65,6 +65,18 @@ func (sb *schemaBuilder) buildStruct(typ reflect.Type) error {
 			continue
 		}
 
+		if field.Anonymous {
+			t := field.Type
+			if field.Type.Kind() == reflect.Ptr {
+				t = field.Type.Elem()
+			}
+			if err := sb.buildStruct(t); err != nil {
+				return err
+			}
+
+			continue
+		}
+
 		if _, ok := object.Fields[fieldInfo.Name]; ok {
 			return fmt.Errorf("bad type %s: two fields named %s", typ, fieldInfo.Name)
 		}
