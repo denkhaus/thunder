@@ -2,6 +2,7 @@ package schemabuilder
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 )
 
@@ -12,8 +13,10 @@ type Object struct {
 	Description string
 	Type        interface{}
 	Methods     Methods // Deprecated, use FieldFunc instead.
-
-	key string
+	key         string
+	ServiceName string
+	IsRoot      bool
+	IsShadow    bool
 }
 
 type paginationObject struct {
@@ -263,6 +266,36 @@ func (s *Object) ManualPaginationWithFallback(name string, manualPaginatedFunc i
 	s.Methods[name] = m
 }
 
+type federation struct{}
+
+// FederatedFieldFunc registers the federated field func on the Federation object nested on a query object
+func (s *Schema) FederatedFieldFunc(name string, f interface{}, options ...FieldFuncOption) {
+	// Create a field func called "__federation" on the root query object
+	q := s.Query()
+	if _, ok := q.Methods[federationField]; !ok {
+		q.FieldFunc(federationField, func() federation { return federation{} })
+	}
+	obj := s.Object(federationName, federation{})
+
+	if obj.Methods == nil {
+		obj.Methods = make(Methods)
+	}
+
+	// Create a method on the "Federation" object to create the shadow object from the federated keys
+	m := &method{Fn: f}
+
+	for _, opt := range options {
+		opt.apply(m)
+	}
+
+	federatedMethodName := fmt.Sprintf("%s-%s", name, obj.ServiceName)
+	if _, ok := obj.Methods[federatedMethodName]; ok {
+		panic("duplicate method")
+	}
+
+	obj.Methods[federatedMethodName] = m
+}
+
 // Key registers the key field on an object. The field should be specified by the name of the
 // graphql field.
 // For example, for an object User:
@@ -299,6 +332,15 @@ type method struct {
 	BatchArgs batchArgs
 
 	ManualPaginationArgs manualPaginationArgs
+
+	// RootObjectType is an object where all the fields are keys
+	// that can be exposed over federation
+	RootObjectType reflect.Type
+
+	// ShadowObjectType is the reflect type of parent object if it
+	// is a shadow object. A shadow object's fields are each of the
+	// field that are sent as args to a federated sunquery.
+	ShadowObjectType reflect.Type
 }
 
 type concurrencyArgs struct {
@@ -344,7 +386,3 @@ type Methods map[string]*method
 type Union struct{}
 
 var unionType = reflect.TypeOf(Union{})
-
-func (s *Object) Federation(f interface{}) {
-	s.FieldFunc("__federation", f)
-}

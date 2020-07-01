@@ -4,8 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/denkhaus/thunder/graphql"
+	"github.com/samsarahq/go/oops"
 )
 
 // serviceSchemas holds all schemas for all of versions of
@@ -30,11 +32,55 @@ type SchemaWithFederationInfo struct {
 	Fields map[*graphql.Field]*FieldInfo
 }
 
-// convertVersionedSchemas takes schemas for all of versions of
+func getRootType(typ *introspectionTypeRef) *introspectionTypeRef {
+	if typ.OfType == nil {
+		return typ
+	}
+	return getRootType(typ.OfType)
+}
+
+// validateFederationKeys validates that if a service is asking for a federated key, all the services
+// that have the objcet registered as a root object expose the field. This ensures that we can make
+// the hop from the root server to any of the federated servers safely before any queries are executed.
+func validateFederationKeys(serviceNames []string, serviceSchemasByName map[string]*introspectionQueryResult, obj *graphql.Object, keyField string) error {
+	validFederatedKey := false
+	for _, service := range serviceNames {
+		for _, typ := range serviceSchemasByName[service].Schema.Types {
+			if typ.Name == obj.Name {
+				// Check that it is a root object by checking if it has a field func called
+				// "__federation" on the object
+				isRootObject := false
+				for _, introspectedField := range typ.Fields {
+					if introspectedField.Name == federationField {
+						isRootObject = true
+						break
+					}
+				}
+				// If it is a root object, check that it has all the fields being requested
+				// as a federated key
+				if isRootObject {
+					for _, introspectedField := range typ.Fields {
+						if introspectedField.Name == keyField {
+							validFederatedKey = true
+							break
+						}
+					}
+				}
+
+			}
+		}
+	}
+	if !validFederatedKey {
+		return oops.Errorf("Invalid federation key %s", keyField)
+	}
+	return nil
+}
+
+// ConvertVersionedSchemas takes schemas for all of versions of
 // all executors services and generates a single merged schema
 // annotated with mapping from field to all services that know
 // how to resolve the field
-func convertVersionedSchemas(schemas serviceSchemas) (*SchemaWithFederationInfo, error) {
+func ConvertVersionedSchemas(schemas serviceSchemas) (*SchemaWithFederationInfo, error) {
 	serviceNames := make([]string, 0, len(schemas))
 	for service := range schemas {
 		serviceNames = append(serviceNames, service)
@@ -83,6 +129,57 @@ func convertVersionedSchemas(schemas serviceSchemas) (*SchemaWithFederationInfo,
 	fieldInfos := make(map[*graphql.Field]*FieldInfo)
 	for _, service := range serviceNames {
 		for _, typ := range serviceSchemasByName[service].Schema.Types {
+			// For federated fields parse the arguments to figure out which
+			// fields are the federated keys. They annotate that information
+			// on the field object.
+			if typ.Name == "Federation" {
+				for _, field := range typ.Fields {
+					// Extract the type name from the formatting <object>-<service>
+					// And check that the object type exists
+					names := strings.SplitN(field.Name, "-", 2)
+					if len(names) != 2 {
+						return nil, oops.Errorf("Field %s doesnt have an object name and service name", field.Name)
+					}
+					objName := names[0]
+					obj, ok := types[objName].(*graphql.Object)
+					if !ok {
+						return nil, oops.Errorf("Expected objectName %s on merged schema", objName)
+					}
+
+					for _, arg := range field.Args {
+
+						rootType := getRootType(arg.Type)
+
+						inputType, ok := types[rootType.Name].(*graphql.InputObject)
+						if !ok {
+							return nil, oops.Errorf("Object %s is not an input object, but it is an argument to the field %s", rootType.Name, field.Name)
+						}
+
+						// Check that all the input fields are on the federated object
+						for fName := range inputType.InputFields {
+							if err := validateFederationKeys(serviceNames, serviceSchemasByName, obj, fName); err != nil {
+								return nil, err
+							}
+
+							if _, ok := obj.Fields[fName]; !ok {
+								return nil, oops.Errorf("input field %s is not a field on the object %s", fName, rootType.Name)
+							}
+						}
+
+						// If the field is one of the input fields to the federatedfieldfunc,
+						// add the service name to the list of federated keys
+						for fName, f := range obj.Fields {
+							if _, ok := inputType.InputFields[fName]; !ok {
+								continue
+							}
+							if f.FederatedKey == nil {
+								f.FederatedKey = make(map[string]bool, len(serviceNames))
+							}
+							f.FederatedKey[service] = true
+						}
+					}
+				}
+			}
 			if typ.Kind == "OBJECT" {
 				obj := types[typ.Name].(*graphql.Object)
 
@@ -120,7 +217,7 @@ func convertSchema(schemas map[string]*introspectionQueryResult) (*SchemaWithFed
 			"": schema,
 		}
 	}
-	return convertVersionedSchemas(versionedSchemas)
+	return ConvertVersionedSchemas(versionedSchemas)
 }
 
 // lookupTypeRef maps the a introspected type to a graphql type
@@ -189,7 +286,7 @@ func parseInputFields(source []introspectionInputField, all map[string]graphql.T
 			return nil, fmt.Errorf("type %s not found", rawType.Name)
 		}
 		switch rawType.Kind {
-		case "INPUT_OBJECT", "SCALAR":
+		case "INPUT_OBJECT", "SCALAR", "ENUM":
 		default:
 			return nil, fmt.Errorf("input field %s has bad typ: %s", field.Name, rawType.Kind)
 		}

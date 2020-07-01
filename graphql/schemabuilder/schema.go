@@ -7,10 +7,14 @@ import (
 	"github.com/denkhaus/thunder/graphql"
 )
 
+const federationField = "__federation"
+const federationName = "Federation"
+
 // Schema is a struct that can be used to build out a GraphQL schema.  Functions
 // can be registered against the "Mutation" and "Query" objects in order to
 // build out a full GraphQL schema.
 type Schema struct {
+	Name      string
 	objects   map[string]*Object
 	enumTypes map[reflect.Type]*EnumMapping
 }
@@ -27,6 +31,21 @@ func NewSchema() *Schema {
 		"desc": SortOrder_Descending,
 	})
 
+	return schema
+}
+
+// NewSchema creates a new schema with a schema name
+func NewSchemaWithName(name string) *Schema {
+	schema := &Schema{
+		Name:    name,
+		objects: make(map[string]*Object),
+	}
+
+	// Default registrations.
+	schema.Enum(SortOrder(0), map[string]SortOrder{
+		"asc":  SortOrder_Ascending,
+		"desc": SortOrder_Descending,
+	})
 	return schema
 }
 
@@ -87,12 +106,33 @@ func getEnumMap(enumMap interface{}, typ reflect.Type) (map[string]interface{}, 
 
 }
 
+// OpjectOption is an interface for the variadic options that can be passed
+// to a Object for configuring options on that object.
+type ObjectOption interface {
+	apply(*Object)
+}
+
+// objectOptionFunc is a helper to define ObjectOptions when creating an object
+type objectOptionFunc func(*Object)
+
+func (f objectOptionFunc) apply(m *Object) { f(m) }
+
+// RootObject is an option that can be passed to a Object to indicate that the object
+// can have field funcs on other severs, allowing it to be federated.
+var RootObject objectOptionFunc = func(m *Object) {
+	m.IsRoot = true
+}
+
+var ShadowObject objectOptionFunc = func(m *Object) {
+	m.IsShadow = true
+}
+
 // Object registers a struct as a GraphQL Object in our Schema.
 // (https://facebook.github.io/graphql/June2018/#sec-Objects)
 // We'll read the fields of the struct to determine it's basic "Fields" and
 // we'll return an Object struct that we can use to register custom
 // relationships and fields on the object.
-func (s *Schema) Object(name string, typ interface{}) *Object {
+func (s *Schema) Object(name string, typ interface{}, options ...ObjectOption) *Object {
 	if object, ok := s.objects[name]; ok {
 		if reflect.TypeOf(object.Type) != reflect.TypeOf(typ) {
 			panic("re-registered object with different type")
@@ -100,10 +140,50 @@ func (s *Schema) Object(name string, typ interface{}) *Object {
 		return object
 	}
 	object := &Object{
-		Name: name,
-		Type: typ,
+		Name:        name,
+		Type:        typ,
+		ServiceName: s.Name,
 	}
 	s.objects[name] = object
+
+	for _, opt := range options {
+		opt.apply(object)
+	}
+
+	objectType := reflect.PtrTo(reflect.TypeOf(typ))
+	if object.IsRoot {
+		if object.Methods == nil {
+			object.Methods = make(Methods)
+		}
+		rootMethod := &method{
+			RootObjectType: objectType,
+		}
+		if _, ok := object.Methods[federationField]; ok {
+			panic("duplicate federation method")
+		}
+		object.Methods[federationField] = rootMethod
+	}
+
+	if object.IsShadow {
+		// Create federation object on the root query
+		q := s.Query()
+		if _, ok := q.Methods[federationField]; !ok {
+			q.FieldFunc(federationField, func() federation { return federation{} })
+		}
+		federationObject := s.Object(federationName, federation{})
+		// Create a method for fetching the federated object
+		m := &method{
+			ShadowObjectType: objectType,
+		}
+		if federationObject.Methods == nil {
+			federationObject.Methods = make(Methods)
+		}
+		federatedMethodName := fmt.Sprintf("%s-%s", name, s.Name)
+		if _, ok := federationObject.Methods[federatedMethodName]; ok {
+			panic("duplicate method")
+		}
+		federationObject.Methods[federatedMethodName] = m
+	}
 	return object
 }
 
@@ -174,16 +254,4 @@ func (s *Schema) MustBuild() *graphql.Schema {
 		panic(err)
 	}
 	return built
-}
-
-
-type federation struct{}
-
-// Federation returns an object struct for exposing federated objects.
-func (s *Schema) Federation() *Object {
-	q := s.Query()
-	if _, ok := q.Methods["__federation"]; !ok {
-		q.FieldFunc("__federation", func() federation { return federation{} })
-	}
-	return s.Object("Federation", federation{})
 }
